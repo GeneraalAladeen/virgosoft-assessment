@@ -77,6 +77,7 @@ async function cancelOrder(orderId) {
 
 // Pusher subscription
 let echoChannel = null;
+let echoOrderbookChannel = null;
 
 function subscribeToEvents() {
     if (!window.Echo) return;
@@ -87,6 +88,11 @@ function subscribeToEvents() {
             fetchMyOrders();
             fetchOrderbook();
         });
+
+    echoOrderbookChannel = window.Echo.channel(`orders.${selectedSymbol.value}`)
+        .listen('OrderPlaced', () => {
+            fetchOrderbook();
+        });
 }
 
 function unsubscribeFromEvents() {
@@ -94,9 +100,25 @@ function unsubscribeFromEvents() {
         window.Echo.leave(`user.${userId.value}`);
         echoChannel = null;
     }
+    if (echoOrderbookChannel) {
+        window.Echo.leave(`orders.${selectedSymbol.value}`);
+        echoOrderbookChannel = null;
+    }
 }
 
-watch(selectedSymbol, fetchOrderbook);
+watch(selectedSymbol, () => {
+    if (echoOrderbookChannel) {
+        window.Echo.leave(`orders.${selectedSymbol.value}`);
+        echoOrderbookChannel = null;
+    }
+    fetchOrderbook();
+    if (window.Echo) {
+        echoOrderbookChannel = window.Echo.channel(`orders.${selectedSymbol.value}`)
+            .listen('OrderPlaced', () => {
+                fetchOrderbook();
+            });
+    }
+});
 
 onMounted(() => {
     fetchProfile();

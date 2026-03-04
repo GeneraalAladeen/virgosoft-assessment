@@ -43,6 +43,8 @@ async function submit() {
             if (message && !Object.keys(errors.value).length) {
                 errors.value.general = [message];
             }
+        } else {
+            errors.value.general = [e.response?.data?.message ?? 'Something went wrong. Please try again.'];
         }
     } finally {
         submitting.value = false;

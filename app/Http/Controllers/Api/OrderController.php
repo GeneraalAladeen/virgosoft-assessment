@@ -14,6 +14,7 @@ use App\Services\OrderMatchingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
@@ -40,13 +41,19 @@ class OrderController extends Controller
 
     public function store(PlaceOrderRequest $request): JsonResponse
     {
-        $order = $this->matchingService->placeOrder(
-            user: $request->user(),
-            symbol: $request->string('symbol')->toString(),
-            side: $request->string('side')->toString(),
-            price: $request->string('price')->toString(),
-            amount: $request->string('amount')->toString(),
-        );
+        try {
+            $order = $this->matchingService->placeOrder(
+                user: $request->user(),
+                symbol: $request->string('symbol')->toString(),
+                side: $request->string('side')->toString(),
+                price: $request->string('price')->toString(),
+                amount: $request->string('amount')->toString(),
+            );
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable) {
+            return response()->json(['message' => 'Failed to place order. Please try again.'], 500);
+        }
 
         return (new OrderResource($order))->response()->setStatusCode(201);
     }
@@ -54,6 +61,12 @@ class OrderController extends Controller
     public function cancel(Order $order): JsonResponse
     {
         DB::transaction(function () use ($order): void {
+            $lockedOrder = Order::lockForUpdate()->findOrFail($order->id);
+
+            if (! $lockedOrder->isOpen()) {
+                abort(409, 'Order cannot be cancelled because it is no longer open.');
+            }
+
             $user = User::lockForUpdate()->findOrFail($order->user_id);
 
             if ($order->side === 'buy') {

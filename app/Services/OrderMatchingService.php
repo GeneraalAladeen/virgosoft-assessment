@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\OrderStatus;
 use App\Events\OrderMatched;
+use App\Events\OrderPlaced;
 use App\Models\Asset;
 use App\Models\Order;
 use App\Models\User;
@@ -22,7 +23,7 @@ class OrderMatchingService
             if ($side === 'buy') {
                 $cost = bcmul($amount, $price, 8);
 
-                if (bccomp($user->balance, $cost, 8) < 0) {
+                if (bccomp((string) $user->balance, $cost, 8) < 0) {
                     throw ValidationException::withMessages([
                         'balance' => 'Insufficient USD balance to place this buy order.',
                     ]);
@@ -36,7 +37,7 @@ class OrderMatchingService
                     ->lockForUpdate()
                     ->first();
 
-                $available = $asset ? bcsub($asset->amount, $asset->locked_amount, 8) : '0.00000000';
+                $available = $asset ? bcsub((string) $asset->amount, (string) $asset->locked_amount, 8) : '0.00000000';
 
                 if (bccomp($available, $amount, 8) < 0) {
                     throw ValidationException::withMessages([
@@ -56,6 +57,8 @@ class OrderMatchingService
                 'amount' => $amount,
                 'status' => OrderStatus::Open,
             ]);
+
+            broadcast(new OrderPlaced($order));
 
             $this->matchOrder($order);
 
