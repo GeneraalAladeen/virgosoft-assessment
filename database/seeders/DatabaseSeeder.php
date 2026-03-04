@@ -2,24 +2,58 @@
 
 namespace Database\Seeders;
 
+use App\Models\Asset;
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
      * Seed the application's database.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $alice = User::create([
+            'name' => 'Alice',
+            'email' => 'alice@example.com',
+            'password' => Hash::make('password'),
+            'balance' => '100000.00000000',
+        ]);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        Asset::create([
+            'user_id' => $alice->id,
+            'symbol' => 'BTC',
+            'amount' => '1.00000000',
+            'locked_amount' => '0.00000000',
+        ]);
+
+        Asset::create([
+            'user_id' => $alice->id,
+            'symbol' => 'ETH',
+            'amount' => '10.00000000',
+            'locked_amount' => '0.00000000',
+        ]);
+
+        $bob = User::create([
+            'name' => 'Bob',
+            'email' => 'bob@example.com',
+            'password' => Hash::make('password'),
+            'balance' => '100000.00000000',
+        ]);
+
+        Asset::create([
+            'user_id' => $bob->id,
+            'symbol' => 'BTC',
+            'amount' => '2.00000000',
+            'locked_amount' => '0.00000000',
+        ]);
+
+        Asset::create([
+            'user_id' => $bob->id,
+            'symbol' => 'ETH',
+            'amount' => '5.00000000',
+            'locked_amount' => '0.00000000',
         ]);
     }
 }
