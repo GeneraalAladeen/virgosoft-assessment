@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\OrderStatus;
+use App\Events\OrderMatched;
 use App\Models\Asset;
 use App\Models\Order;
 use App\Models\User;
@@ -146,5 +147,7 @@ class OrderMatchingService
 
         $sellOrder->status = OrderStatus::Filled;
         $sellOrder->save();
+
+        broadcast(new OrderMatched($buyOrder, $sellOrder, (string) $matchedPrice, $volume, $commission));
     }
 }
