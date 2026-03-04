@@ -1,59 +1,202 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Virgosoft Assessment — Trading Platform
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A trading platform built as a technical assessment. It features a real-time order book, atomic order matching engine, wallet/asset management, and a live dashboard UI.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Features
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Order Book** — place buy/sell orders with atomic matching and a 1.5% commission on matched trades
+- **Order Cancellation** — cancel open orders with asset/balance refund
+- **Wallet & Assets** — track user balances and asset holdings
+- **Real-time Updates** — order book and wallet update live via Pusher/Laravel Echo
+- **REST API** — token-based auth via Laravel Sanctum
+- **SPA Frontend** — Vue 3 + Inertia.js + Tailwind CSS
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Tech Stack
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+| Layer | Technology |
+|---|---|
+| Backend | PHP 8.4, Laravel 12 |
+| Frontend | Vue 3, Inertia.js, Tailwind CSS 4 |
+| Auth | Laravel Sanctum |
+| Real-time | Pusher (Laravel Echo + pusher-js) |
+| Database | MySQL 8.4 |
+| Cache / Sessions | Redis 7 |
+| Queue | Laravel Queue (Redis) |
+| Build Tool | Vite 7 |
+| Testing | PHPUnit 11, SQLite (in-memory) |
+| Containerisation | Docker, Docker Compose |
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+---
 
-## Laravel Sponsors
+## Requirements
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- [Docker](https://docs.docker.com/get-docker/) & Docker Compose
+- A [Pusher](https://pusher.com) account (or compatible server like Soketi) for real-time events
 
-### Premium Partners
+> No local PHP, Composer, or Node installation is required — everything runs inside the containers.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+---
 
-## Contributing
+## Installation & Setup
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 1. Clone the repository
 
-## Code of Conduct
+```bash
+git clone <repo-url> virgosoft-assessment
+cd virgosoft-assessment
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 2. Configure environment
 
-## Security Vulnerabilities
+```bash
+cp .env.example .env
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Fill in your Pusher credentials in `.env`:
+
+```env
+PUSHER_APP_ID=your_app_id
+PUSHER_APP_KEY=your_app_key
+PUSHER_APP_SECRET=your_app_secret
+PUSHER_APP_CLUSTER=mt1
+```
+
+The database, Redis, and Docker port settings are already pre-configured in `.env.example`. The defaults are:
+
+```env
+DOCKER_DB_PORT=3307         # MySQL exposed on host port 3307
+DOCKER_SERVER_PORT=8000     # App exposed on host port 8000
+DOCKER_CONFIG_FOLDER=~/.docker-config/virgosoft-assessment
+```
+
+### 3. Build the Docker containers
+
+```bash
+docker compose build
+```
+
+### 4. Start the containers
+
+```bash
+docker compose up -d
+```
+
+This starts:
+- `webserver` — PHP app server (`php artisan serve`)
+- `queue` — Laravel queue worker
+- `database_server` — MySQL 8.4
+- `redis` — Redis 7
+
+### 5. Install PHP dependencies
+
+```bash
+docker compose exec webserver composer install
+```
+
+### 6. Generate the application key
+
+```bash
+docker compose exec webserver php artisan key:generate
+```
+
+### 7. Run database migrations
+
+```bash
+docker compose exec webserver php artisan migrate
+```
+
+### 8. Install Node dependencies and build frontend assets
+
+```bash
+docker compose exec webserver npm install
+docker compose exec webserver npm run build
+```
+
+The app is now available at [http://localhost:8000](http://localhost:8000).
+
+---
+
+## API Endpoints
+
+All routes require a valid Sanctum token via `Authorization: Bearer <token>`.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/profile` | Authenticated user profile |
+| GET | `/api/orders` | Order book + order history |
+| POST | `/api/orders` | Place a new order |
+| POST | `/api/orders/{id}/cancel` | Cancel an open order |
+
+---
+
+## Testing
+
+### Default: SQLite in-memory (no setup required)
+
+By default `phpunit.xml` configures the test suite to use an in-memory SQLite database. No extra database or configuration is needed — just run the tests:
+
+```bash
+docker compose exec webserver php artisan test
+```
+
+### Alternative: dedicated MySQL test database
+
+If you want the tests to run against a real MySQL database instead:
+
+**1. Create the test database inside the running MySQL container:**
+
+```bash
+docker compose exec database_server mysql -uroot -psecret -e \
+  "CREATE DATABASE IF NOT EXISTS virgosoft_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+**2. Verify `.env.testing` is configured correctly:**
+
+```env
+APP_ENV=testing
+
+DB_CONNECTION=mysql
+DB_HOST=database_server   # use the Docker service name, not 127.0.0.1
+DB_PORT=3306
+DB_DATABASE=virgosoft_test
+DB_USERNAME=root
+DB_PASSWORD=secret
+
+SESSION_DRIVER=array
+QUEUE_CONNECTION=sync
+CACHE_STORE=array
+BROADCAST_CONNECTION=null
+MAIL_MAILER=array
+```
+
+**3. Remove the SQLite overrides from `phpunit.xml`** (or comment them out):
+
+```xml
+<!-- Remove or comment these two lines: -->
+<env name="DB_CONNECTION" value="sqlite"/>
+<env name="DB_DATABASE" value=":memory:"/>
+```
+
+**4. Run migrations against the test database:**
+
+```bash
+docker compose exec webserver php artisan migrate --env=testing
+```
+
+### Running tests
+
+```bash
+# Run all tests
+docker compose exec webserver php artisan test
+
+```
+
+---
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+MIT
