@@ -19,6 +19,9 @@ const loadingProfile = ref(false);
 const loadingOrders = ref(false);
 const loadingOrderbook = ref(false);
 
+const filterSide = ref('');
+const filterStatus = ref('');
+
 // Derived wallet display
 const usdBalance = computed(() => profile.value ? parseFloat(profile.value.balance).toFixed(2) : '—');
 const assets = computed(() => profile.value?.assets ?? []);
@@ -38,7 +41,10 @@ async function fetchProfile() {
 async function fetchMyOrders() {
     loadingOrders.value = true;
     try {
-        const { data } = await axios.get('/api/orders');
+        const params = {};
+        if (filterSide.value)   params.side   = filterSide.value;
+        if (filterStatus.value) params.status  = filterStatus.value;
+        const { data } = await axios.get('/api/orders', { params });
         myOrders.value = data.data;
     } catch {
         toast.error('Failed to load orders');
@@ -46,6 +52,8 @@ async function fetchMyOrders() {
         loadingOrders.value = false;
     }
 }
+
+watch([filterSide, filterStatus], fetchMyOrders);
 
 async function fetchOrderbook() {
     loadingOrderbook.value = true;
@@ -317,7 +325,22 @@ const bidsDisplay = computed(() => orderbook.value.bids.slice(0, 10));
                     </div>
 
                     <div class="rounded-lg bg-white p-4 shadow-sm">
-                        <h3 class="mb-3 text-sm font-semibold text-gray-700">My Orders</h3>
+                        <div class="mb-3 flex items-center justify-between gap-2">
+                            <h3 class="text-sm font-semibold text-gray-700 shrink-0">My Orders</h3>
+                            <div class="flex gap-1.5 flex-wrap justify-end">
+                                <select v-model="filterSide" class="text-xs border border-gray-200 rounded px-1.5 py-0.5 text-gray-600 bg-white">
+                                    <option value="">All sides</option>
+                                    <option value="buy">Buy</option>
+                                    <option value="sell">Sell</option>
+                                </select>
+                                <select v-model="filterStatus" class="text-xs border border-gray-200 rounded px-1.5 py-0.5 text-gray-600 bg-white">
+                                    <option value="">All statuses</option>
+                                    <option value="1">Open</option>
+                                    <option value="2">Filled</option>
+                                    <option value="3">Cancelled</option>
+                                </select>
+                            </div>
+                        </div>
 
                         <div v-if="myOrders.length" class="space-y-2">
                             <div

@@ -18,6 +18,8 @@ class OrderIndexRequest extends FormRequest
     {
         return [
             'symbol' => ['nullable', 'string', 'in:BTC,ETH'],
+            'side'   => ['nullable', 'string', 'in:buy,sell'],
+            'status' => ['nullable', 'integer', 'in:1,2,3'],
         ];
     }
 }
