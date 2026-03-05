@@ -2,7 +2,7 @@ import { ref, watch } from 'vue';
 import axios from 'axios';
 import { toast } from 'vue-sonner';
 
-export function useMyOrders() {
+export function useMyOrders(selectedSymbol) {
     const myOrders = ref([]);
     const loadingOrders = ref(false);
     const filterSide = ref('');
@@ -12,8 +12,9 @@ export function useMyOrders() {
         loadingOrders.value = true;
         try {
             const params = {};
-            if (filterSide.value)   params.side   = filterSide.value;
-            if (filterStatus.value) params.status  = filterStatus.value;
+            if (selectedSymbol?.value) params.symbol = selectedSymbol.value;
+            if (filterSide.value)      params.side   = filterSide.value;
+            if (filterStatus.value)    params.status  = filterStatus.value;
             const { data } = await axios.get('/api/orders', { params });
             myOrders.value = data.data;
         } catch {
@@ -23,7 +24,7 @@ export function useMyOrders() {
         }
     }
 
-    watch([filterSide, filterStatus], fetchMyOrders);
+    watch([selectedSymbol, filterSide, filterStatus], fetchMyOrders);
 
     return { myOrders, loadingOrders, filterSide, filterStatus, fetchMyOrders };
 }

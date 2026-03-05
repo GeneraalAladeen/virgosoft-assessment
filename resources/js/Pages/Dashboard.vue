@@ -20,7 +20,7 @@ const userId = computed(() => page.props.auth.user.id);
 const selectedSymbol = ref('BTC');
 
 const { profile, loadingProfile, usdBalance, assets, fetchProfile } = useProfile();
-const { myOrders, loadingOrders, filterSide, filterStatus, fetchMyOrders } = useMyOrders();
+const { myOrders, loadingOrders, filterSide, filterStatus, fetchMyOrders } = useMyOrders(selectedSymbol);
 const {
     orderbook, trades, loadingOrderbook, asksDisplay, bidsDisplay,
     fetchOrderbook, fetchTrades,
