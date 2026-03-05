@@ -82,7 +82,7 @@ export function useMarketData(selectedSymbol, userId) {
         if (!window.Echo) return;
         echoOrderbookChannel = window.Echo.channel(`orders.${selectedSymbol.value}`)
             .listen('OrderPlaced', applyOrderPlaced)
-            .listen('OrderMatched', applyOrderMatched);
+            .listen('TradeExecuted', applyOrderMatched);
     }
 
     function unsubscribeOrderbook() {
@@ -102,7 +102,7 @@ export function useMarketData(selectedSymbol, userId) {
         if (window.Echo) {
             echoOrderbookChannel = window.Echo.channel(`orders.${newSymbol}`)
                 .listen('OrderPlaced', applyOrderPlaced)
-                .listen('OrderMatched', applyOrderMatched);
+                .listen('TradeExecuted', applyOrderMatched);
         }
     });
 

@@ -4,7 +4,6 @@ namespace App\Events;
 
 use App\Models\Order;
 use App\Models\User;
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -33,7 +32,6 @@ class OrderMatched implements ShouldBroadcast
         return [
             new PrivateChannel("user.{$this->buyOrder->user_id}"),
             new PrivateChannel("user.{$this->sellOrder->user_id}"),
-            new Channel("orders.{$this->buyOrder->symbol}"),
         ];
     }
 

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\OrderStatus;
 use App\Events\OrderMatched;
 use App\Events\OrderPlaced;
+use App\Events\TradeExecuted;
 use App\Models\Asset;
 use App\Models\Order;
 use App\Models\Trade;
@@ -167,6 +168,7 @@ class OrderMatchingService
             $buyer->load('assets');
             $seller->load('assets');
             broadcast(new OrderMatched($buyOrder, $sellOrder, (string) $matchedPrice, $volume, $commission, $buyer, $seller));
+            broadcast(new TradeExecuted($buyOrder, $sellOrder, (string) $matchedPrice, $volume, $commission, $buyer, $seller));
         });
     }
 }

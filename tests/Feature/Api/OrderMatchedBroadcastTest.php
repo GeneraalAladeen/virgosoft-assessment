@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Events\OrderMatched;
+use App\Events\TradeExecuted;
 use App\Models\Asset;
 use App\Models\Order;
 use App\Models\User;
@@ -91,9 +92,35 @@ class OrderMatchedBroadcastTest extends TestCase
         $event = new OrderMatched($buyOrder, $sellOrder, '90000.00000000', '9000.00000000', '135.00000000', $buyer, $seller);
         $channels = $event->broadcastOn();
 
-        $this->assertCount(3, $channels);
+        $this->assertCount(2, $channels);
         $this->assertEquals("private-user.{$buyer->id}", $channels[0]->name);
         $this->assertEquals("private-user.{$seller->id}", $channels[1]->name);
-        $this->assertEquals('orders.BTC', $channels[2]->name);
+    }
+
+    public function test_trade_executed_event_broadcasts_on_public_symbol_channel_only(): void
+    {
+        $buyer = User::factory()->create(['balance' => '10000.00000000']);
+        $seller = User::factory()->create();
+
+        $buyOrder = Order::factory()->open()->create([
+            'user_id' => $buyer->id, 'symbol' => 'BTC',
+            'side' => 'buy', 'price' => '95000.00000000', 'amount' => '0.10000000',
+        ]);
+        $sellOrder = Order::factory()->open()->create([
+            'user_id' => $seller->id, 'symbol' => 'BTC',
+            'side' => 'sell', 'price' => '90000.00000000', 'amount' => '0.10000000',
+        ]);
+
+        $event = new TradeExecuted($buyOrder, $sellOrder, '90000.00000000', '9000.00000000', '135.00000000', $buyer, $seller);
+        $channels = $event->broadcastOn();
+
+        $this->assertCount(1, $channels);
+        $this->assertEquals('orders.BTC', $channels[0]->name);
+
+        $payload = $event->broadcastWith();
+        $this->assertArrayNotHasKey('balance', $payload['buyer']);
+        $this->assertArrayNotHasKey('assets', $payload['buyer']);
+        $this->assertArrayNotHasKey('balance', $payload['seller']);
+        $this->assertArrayNotHasKey('assets', $payload['seller']);
     }
 }
