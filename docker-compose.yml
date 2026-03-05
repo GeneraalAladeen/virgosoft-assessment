@@ -33,12 +33,12 @@ services:
         ports:
             - ${DOCKER_SERVER_PORT}:8000
         depends_on:
-            - queue
+            - horizon
 
-    queue:
+    horizon:
         <<: *base_php
         restart: unless-stopped
-        command: ["php", "artisan", "queue:listen"]
+        command: ["php", "artisan", "horizon"]
         depends_on:
             - database_server
             - redis
