@@ -58,5 +58,6 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call(OrderbookSeeder::class);
+        $this->call(TradeSeeder::class);
     }
 }

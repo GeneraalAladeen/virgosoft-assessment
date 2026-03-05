@@ -7,6 +7,7 @@ use App\Events\OrderMatched;
 use App\Events\OrderPlaced;
 use App\Models\Asset;
 use App\Models\Order;
+use App\Models\Trade;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -150,6 +151,14 @@ class OrderMatchingService
 
         $sellOrder->status = OrderStatus::Filled;
         $sellOrder->save();
+
+        Trade::create([
+            'buy_order_id'  => $buyOrder->id,
+            'sell_order_id' => $sellOrder->id,
+            'buyer_id'      => $buyer->id,
+            'seller_id'     => $seller->id,
+            'commission'    => $commission,
+        ]);
 
         DB::afterCommit(function () use ($buyOrder, $sellOrder, $matchedPrice, $volume, $commission, $buyer, $seller) {
             $buyer->load('assets');

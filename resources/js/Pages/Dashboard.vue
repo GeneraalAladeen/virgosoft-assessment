@@ -14,6 +14,7 @@ const selectedSymbol = ref('BTC');
 const profile = ref(null);
 const myOrders = ref([]);
 const orderbook = ref({ bids: [], asks: [] });
+const trades = ref([]);
 
 const loadingProfile = ref(false);
 const loadingOrders = ref(false);
@@ -54,6 +55,17 @@ async function fetchMyOrders() {
 }
 
 watch([filterSide, filterStatus], fetchMyOrders);
+
+async function fetchTrades() {
+    try {
+        const { data } = await axios.get('/api/trades', {
+            params: { symbol: selectedSymbol.value },
+        });
+        trades.value = data.data;
+    } catch {
+        // silent — trades are supplementary
+    }
+}
 
 async function fetchOrderbook() {
     loadingOrderbook.value = true;
@@ -117,6 +129,25 @@ function applyOrderMatched(event) {
     const filledIds = new Set([event.buy_order_id, event.sell_order_id]);
     orderbook.value.bids = orderbook.value.bids.filter(o => !filledIds.has(o.id));
     orderbook.value.asks = orderbook.value.asks.filter(o => !filledIds.has(o.id));
+
+    const myRole = event.buyer?.id === userId.value ? 'buyer'
+        : event.seller?.id === userId.value ? 'seller'
+        : null;
+
+    trades.value = [
+        {
+            id: Date.now(),
+            symbol: event.symbol,
+            price: event.matched_price,
+            amount: event.amount,
+            buyer: event.buyer ? { id: event.buyer.id, name: event.buyer.name } : null,
+            seller: event.seller ? { id: event.seller.id, name: event.seller.name } : null,
+            commission: event.commission ?? null,
+            my_role: myRole,
+            executed_at: new Date().toISOString(),
+        },
+        ...trades.value,
+    ].slice(0, 20);
 }
 
 function subscribeToEvents() {
@@ -165,6 +196,7 @@ watch(selectedSymbol, (newSymbol, oldSymbol) => {
         echoOrderbookChannel = null;
     }
     fetchOrderbook();
+    fetchTrades();
     if (window.Echo) {
         echoOrderbookChannel = window.Echo.channel(`orders.${newSymbol}`)
             .listen('OrderPlaced', applyOrderPlaced)
@@ -176,6 +208,7 @@ onMounted(() => {
     fetchProfile();
     fetchMyOrders();
     fetchOrderbook();
+    fetchTrades();
     subscribeToEvents();
 });
 
@@ -321,6 +354,40 @@ const bidsDisplay = computed(() => orderbook.value.bids.slice(0, 10));
                                 </div>
                             </div>
                             <p v-else class="text-xs text-gray-400 py-2">No buy orders</p>
+                        </div>
+
+                        <!-- Recent Trades -->
+                        <div class="border-t border-gray-100 px-4 pt-3 pb-2">
+                            <div class="mb-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Recent Trades</div>
+                            <div v-if="trades.length" class="space-y-1.5">
+                                <div
+                                    v-for="trade in trades"
+                                    :key="trade.id"
+                                    :class="trade.my_role === 'buyer' ? 'bg-green-50 border-green-200' : trade.my_role === 'seller' ? 'bg-red-50 border-red-200' : 'border-gray-100'"
+                                    class="rounded border px-2 py-1 text-xs"
+                                >
+                                    <div class="flex justify-between">
+                                        <span class="font-mono font-medium text-gray-800">${{ formatPrice(trade.price) }}</span>
+                                        <span class="font-mono text-gray-500">{{ formatAmount(trade.amount) }}</span>
+                                        <span class="text-gray-400">{{ new Date(trade.executed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) }}</span>
+                                    </div>
+                                    <div class="mt-0.5 flex items-center justify-between text-gray-400">
+                                        <span>
+                                            <span :class="trade.my_role === 'seller' ? 'text-red-500 font-medium' : ''">{{ trade.seller?.name ?? '—' }}</span>
+                                            <span class="mx-1">→</span>
+                                            <span :class="trade.my_role === 'buyer' ? 'text-green-600 font-medium' : ''">{{ trade.buyer?.name ?? '—' }}</span>
+                                        </span>
+                                        <span v-if="trade.my_role === 'buyer' && trade.commission" class="text-orange-400">
+                                            fee ${{ formatPrice(trade.commission) }}
+                                        </span>
+                                        <span v-if="trade.my_role" class="ml-1 rounded px-1 py-0.5 text-white text-[10px] font-semibold"
+                                            :class="trade.my_role === 'buyer' ? 'bg-green-500' : 'bg-red-400'">
+                                            You {{ trade.my_role === 'buyer' ? 'bought' : 'sold' }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <p v-else class="text-xs text-gray-400 py-1">No trades yet</p>
                         </div>
                     </div>
 

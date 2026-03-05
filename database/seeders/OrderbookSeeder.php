@@ -58,9 +58,20 @@ class OrderbookSeeder extends Seeder
         ];
 
         // Spread orders across 8 market-maker users
-        $makers = collect(range(1, 8))->map(fn ($i) => User::create([
-            'name'     => "Market Maker {$i}",
-            'email'    => "maker{$i}@example.com",
+        $makerProfiles = [
+            ['name' => 'James Whitfield',  'email' => 'james.whitfield@example.com'],
+            ['name' => 'Priya Nair',       'email' => 'priya.nair@example.com'],
+            ['name' => 'Carlos Reyes',     'email' => 'carlos.reyes@example.com'],
+            ['name' => 'Sophie Laurent',   'email' => 'sophie.laurent@example.com'],
+            ['name' => 'David Okonkwo',    'email' => 'david.okonkwo@example.com'],
+            ['name' => 'Mia Johansson',    'email' => 'mia.johansson@example.com'],
+            ['name' => 'Tariq Hassan',     'email' => 'tariq.hassan@example.com'],
+            ['name' => 'Elena Voronova',   'email' => 'elena.voronova@example.com'],
+        ];
+
+        $makers = collect($makerProfiles)->map(fn ($p) => User::create([
+            'name'     => $p['name'],
+            'email'    => $p['email'],
             'password' => Hash::make('password'),
             'balance'  => '500000.00000000',
         ]));

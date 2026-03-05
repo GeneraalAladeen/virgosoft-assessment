@@ -52,6 +52,7 @@ class OrderMatched implements ShouldBroadcast
             'commission'    => $this->commission,
             'buyer' => [
                 'id'      => $this->buyer->id,
+                'name'    => $this->buyer->name,
                 'balance' => $this->buyer->balance,
                 'assets'  => $this->buyer->assets->map(fn ($a) => [
                     'symbol'        => $a->symbol,
@@ -61,6 +62,7 @@ class OrderMatched implements ShouldBroadcast
             ],
             'seller' => [
                 'id'      => $this->seller->id,
+                'name'    => $this->seller->name,
                 'balance' => $this->seller->balance,
                 'assets'  => $this->seller->assets->map(fn ($a) => [
                     'symbol'        => $a->symbol,
