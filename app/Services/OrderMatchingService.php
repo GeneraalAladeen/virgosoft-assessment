@@ -45,7 +45,7 @@ class OrderMatchingService
                     ]);
                 }
 
-                $asset->locked_amount = bcadd($asset->locked_amount, $amount, 8);
+                $asset->locked_amount = bcadd((string) $asset->locked_amount, $amount, 8);
                 $asset->save();
             }
 
@@ -58,7 +58,7 @@ class OrderMatchingService
                 'status' => OrderStatus::Open,
             ]);
 
-            broadcast(new OrderPlaced($order));
+            DB::afterCommit(fn () => broadcast(new OrderPlaced($order)));
 
             $this->matchOrder($order);
 
@@ -107,7 +107,7 @@ class OrderMatchingService
     private function settle(Order $buyOrder, Order $sellOrder): void
     {
         $matchedPrice = $sellOrder->price;
-        $volume = bcmul($buyOrder->amount, $matchedPrice, 8);
+        $volume = bcmul((string) $buyOrder->amount, (string) $matchedPrice, 8);
         $commission = bcmul($volume, self::COMMISSION_RATE, 8);
 
         $buyer = User::lockForUpdate()->findOrFail($buyOrder->user_id);
@@ -140,7 +140,7 @@ class OrderMatchingService
         $sellerAsset = Asset::where('user_id', $seller->id)
             ->where('symbol', $sellOrder->symbol)
             ->lockForUpdate()
-            ->first();
+            ->firstOrFail();
 
         $sellerAsset->locked_amount = bcsub((string) $sellerAsset->locked_amount, (string) $sellOrder->amount, 8);
         $sellerAsset->save();
@@ -151,6 +151,6 @@ class OrderMatchingService
         $sellOrder->status = OrderStatus::Filled;
         $sellOrder->save();
 
-        broadcast(new OrderMatched($buyOrder, $sellOrder, (string) $matchedPrice, $volume, $commission));
+        DB::afterCommit(fn () => broadcast(new OrderMatched($buyOrder, $sellOrder, (string) $matchedPrice, $volume, $commission)));
     }
 }

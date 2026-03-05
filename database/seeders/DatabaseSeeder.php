@@ -6,6 +6,7 @@ use App\Models\Asset;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Database\Seeders\OrderbookSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -55,5 +56,7 @@ class DatabaseSeeder extends Seeder
             'amount' => '5.00000000',
             'locked_amount' => '0.00000000',
         ]);
+
+        $this->call(OrderbookSeeder::class);
     }
 }
