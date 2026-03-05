@@ -58,6 +58,7 @@ cd virgosoft-assessment
 
 ```bash
 cp .env.example .env
+cp .env.example .env.testing
 ```
 
 Fill in your Pusher credentials in `.env`:
@@ -148,9 +149,11 @@ All routes require a valid Sanctum token via `Authorization: Bearer <token>`.
 
 ## Testing
 
-### Default: SQLite in-memory (no setup required)
+> **Prerequisites:** ensure you have copied `.env.example` to `.env.testing` (see step 2 of Installation). `.env.testing` is gitignored and must be created manually.
 
-By default `phpunit.xml` configures the test suite to use an in-memory SQLite database. No extra database or configuration is needed — just run the tests:
+### Default: SQLite in-memory (no extra database required)
+
+`phpunit.xml` overrides the database connection to SQLite in-memory, so `.env.testing` only needs to exist — its `DB_*` values are ignored for this mode. Just run:
 
 ```bash
 docker compose exec webserver php artisan test
@@ -167,7 +170,7 @@ docker compose exec database_server mysql -uroot -psecret -e \
   "CREATE DATABASE IF NOT EXISTS virgosoft_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 ```
 
-**2. Verify `.env.testing` is configured correctly:**
+**2. Update `.env.testing` with the following values:**
 
 ```env
 APP_ENV=testing
