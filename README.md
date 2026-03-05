@@ -7,8 +7,12 @@ A trading platform built as a technical assessment. It features a real-time orde
 ## Features
 
 - **Order Book** — place buy/sell orders with atomic matching and a 1.5% commission on matched trades
+- **Price Improvement** — buyers always pay the maker's price, not their limit; overpay is refunded at settlement
+- **Self-match Prevention** — users cannot trade against their own orders (enforced on both backend and UI)
+- **Own Order Highlighting** — a user's own orders are visually flagged in the order book with a "·You" indicator
 - **Order Cancellation** — cancel open orders with asset/balance refund
-- **Wallet & Assets** — track user balances and asset holdings
+- **Wallet & Assets** — track user balances and asset holdings, updated in real time from match events (no extra fetch)
+- **Commission Display** — buyers see the commission deducted in their toast notification and filled order details
 - **Real-time Updates** — order book and wallet update live via Pusher/Laravel Echo
 - **REST API** — token-based auth via Laravel Sanctum
 - **SPA Frontend** — Vue 3 + Inertia.js + Tailwind CSS
@@ -103,11 +107,20 @@ docker compose exec webserver composer install
 docker compose exec webserver php artisan key:generate
 ```
 
-### 7. Run database migrations
+### 7. Run database migrations and seed
 
 ```bash
-docker compose exec webserver php artisan migrate
+docker compose exec webserver php artisan migrate --seed
 ```
+
+This creates two demo users with starting balances and assets:
+
+| Name | Email | Password | USD Balance | BTC | ETH |
+|------|-------|----------|-------------|-----|-----|
+| Alice | alice@example.com | password | $100,000 | 1.0 | 10.0 |
+| Bob | bob@example.com | password | $100,000 | 2.0 | 5.0 |
+
+The seeder also populates a realistic order book for both BTC/USD and ETH/USD so the dashboard is usable immediately.
 
 ### 8. Install Node dependencies and build frontend assets
 
