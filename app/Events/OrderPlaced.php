@@ -26,6 +26,7 @@ class OrderPlaced implements ShouldBroadcast
     {
         return [
             'id' => $this->order->id,
+            'user_id' => $this->order->user_id,
             'symbol' => $this->order->symbol,
             'side' => $this->order->side,
             'price' => $this->order->price,

@@ -151,6 +151,10 @@ class OrderMatchingService
         $sellOrder->status = OrderStatus::Filled;
         $sellOrder->save();
 
-        DB::afterCommit(fn () => broadcast(new OrderMatched($buyOrder, $sellOrder, (string) $matchedPrice, $volume, $commission)));
+        DB::afterCommit(function () use ($buyOrder, $sellOrder, $matchedPrice, $volume, $commission, $buyer, $seller) {
+            $buyer->load('assets');
+            $seller->load('assets');
+            broadcast(new OrderMatched($buyOrder, $sellOrder, (string) $matchedPrice, $volume, $commission, $buyer, $seller));
+        });
     }
 }
