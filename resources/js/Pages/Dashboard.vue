@@ -5,6 +5,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
 import LimitOrderForm from '@/Components/LimitOrderForm.vue';
 import axios from 'axios';
+import { toast } from 'vue-sonner';
 
 const page = usePage();
 const userId = computed(() => page.props.auth.user.id);
@@ -27,6 +28,8 @@ async function fetchProfile() {
     try {
         const { data } = await axios.get('/api/profile');
         profile.value = data.data;
+    } catch {
+        toast.error('Failed to load wallet');
     } finally {
         loadingProfile.value = false;
     }
@@ -37,6 +40,8 @@ async function fetchMyOrders() {
     try {
         const { data } = await axios.get('/api/orders');
         myOrders.value = data.data;
+    } catch {
+        toast.error('Failed to load orders');
     } finally {
         loadingOrders.value = false;
     }
@@ -53,25 +58,34 @@ async function fetchOrderbook() {
             bids: orders.filter(o => o.side === 'buy').sort((a, b) => b.price - a.price),
             asks: orders.filter(o => o.side === 'sell').sort((a, b) => a.price - b.price),
         };
+    } catch {
+        toast.error('Failed to load orderbook');
     } finally {
         loadingOrderbook.value = false;
     }
 }
 
 function onOrderPlaced() {
+    toast.success('Order placed successfully');
     fetchProfile();
     fetchMyOrders();
-    fetchOrderbook();
+    // orderbook updated via OrderPlaced broadcast
 }
 
 async function cancelOrder(orderId) {
     try {
         await axios.post(`/api/orders/${orderId}/cancel`);
-        fetchProfile();
-        fetchMyOrders();
-        fetchOrderbook();
+
+        myOrders.value = myOrders.value.map(o =>
+            o.id === orderId ? { ...o, status: 3 } : o
+        );
+        orderbook.value.bids = orderbook.value.bids.filter(o => o.id !== orderId);
+        orderbook.value.asks = orderbook.value.asks.filter(o => o.id !== orderId);
+
+        fetchProfile(); // balance refunded, assets unlocked
+        toast.success('Order cancelled');
     } catch (e) {
-        // order may no longer be open
+        toast.error(e.response?.data?.message ?? 'Failed to cancel order');
     }
 }
 
@@ -79,20 +93,33 @@ async function cancelOrder(orderId) {
 let echoChannel = null;
 let echoOrderbookChannel = null;
 
+function applyOrderPlaced(event) {
+    if (event.symbol !== selectedSymbol.value || event.status !== 1) return;
+
+    const order = { id: event.id, symbol: event.symbol, side: event.side, price: event.price, amount: event.amount, status: event.status };
+
+    if (event.side === 'buy') {
+        orderbook.value.bids = [...orderbook.value.bids, order].sort((a, b) => b.price - a.price);
+    } else {
+        orderbook.value.asks = [...orderbook.value.asks, order].sort((a, b) => a.price - b.price);
+    }
+}
+
 function subscribeToEvents() {
     if (!window.Echo) return;
 
     echoChannel = window.Echo.private(`user.${userId.value}`)
-        .listen('OrderMatched', () => {
-            fetchProfile();
-            fetchMyOrders();
-            fetchOrderbook();
+        .listen('OrderMatched', (event) => {
+            const filledIds = new Set([event.buy_order_id, event.sell_order_id]);
+            myOrders.value = myOrders.value.map(o => filledIds.has(o.id) ? { ...o, status: 2 } : o);
+            orderbook.value.bids = orderbook.value.bids.filter(o => !filledIds.has(o.id));
+            orderbook.value.asks = orderbook.value.asks.filter(o => !filledIds.has(o.id));
+            fetchProfile(); // balance/assets changed
+            toast.success(`Order matched — ${event.amount} ${event.symbol} at $${formatPrice(event.matched_price)}`);
         });
 
     echoOrderbookChannel = window.Echo.channel(`orders.${selectedSymbol.value}`)
-        .listen('OrderPlaced', () => {
-            fetchOrderbook();
-        });
+        .listen('OrderPlaced', applyOrderPlaced);
 }
 
 function unsubscribeFromEvents() {
@@ -106,17 +133,15 @@ function unsubscribeFromEvents() {
     }
 }
 
-watch(selectedSymbol, () => {
+watch(selectedSymbol, (newSymbol, oldSymbol) => {
     if (echoOrderbookChannel) {
-        window.Echo.leave(`orders.${selectedSymbol.value}`);
+        window.Echo.leave(`orders.${oldSymbol}`);
         echoOrderbookChannel = null;
     }
     fetchOrderbook();
     if (window.Echo) {
-        echoOrderbookChannel = window.Echo.channel(`orders.${selectedSymbol.value}`)
-            .listen('OrderPlaced', () => {
-                fetchOrderbook();
-            });
+        echoOrderbookChannel = window.Echo.channel(`orders.${newSymbol}`)
+            .listen('OrderPlaced', applyOrderPlaced);
     }
 });
 
@@ -162,7 +187,6 @@ function formatAmount(val) {
         <div class="py-6">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
-                <!-- Symbol tabs -->
                 <div class="mb-4 flex gap-2">
                     <button
                         v-for="sym in ['BTC', 'ETH']"
@@ -177,10 +201,7 @@ function formatAmount(val) {
 
                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
 
-                    <!-- Left: Wallet + Order form -->
                     <div class="space-y-4">
-
-                        <!-- Wallet -->
                         <div class="rounded-lg bg-white p-4 shadow-sm">
                             <h3 class="mb-3 text-sm font-semibold text-gray-700">Wallet</h3>
                             <div class="space-y-2 text-sm">
@@ -206,11 +227,9 @@ function formatAmount(val) {
                         <LimitOrderForm :symbol="selectedSymbol" @order-placed="onOrderPlaced" />
                     </div>
 
-                    <!-- Center: Orderbook -->
                     <div class="rounded-lg bg-white p-4 shadow-sm">
                         <h3 class="mb-3 text-sm font-semibold text-gray-700">Orderbook — {{ selectedSymbol }}/USD</h3>
 
-                        <!-- Asks (sell orders) -->
                         <div class="mb-2">
                             <div class="mb-1 grid grid-cols-2 text-xs text-gray-400">
                                 <span>Price (USD)</span>
@@ -231,7 +250,6 @@ function formatAmount(val) {
 
                         <div class="my-2 border-t border-gray-100"></div>
 
-                        <!-- Bids (buy orders) -->
                         <div>
                             <div v-if="orderbook.bids.length" class="space-y-0.5">
                                 <div
@@ -247,7 +265,6 @@ function formatAmount(val) {
                         </div>
                     </div>
 
-                    <!-- Right: My orders -->
                     <div class="rounded-lg bg-white p-4 shadow-sm">
                         <h3 class="mb-3 text-sm font-semibold text-gray-700">My Orders</h3>
 

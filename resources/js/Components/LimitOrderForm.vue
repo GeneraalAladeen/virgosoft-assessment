@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import axios from 'axios';
+import { toast } from 'vue-sonner';
 
 const props = defineProps({
     symbol: { type: String, required: true },
@@ -41,10 +42,10 @@ async function submit() {
             errors.value = e.response.data.errors ?? {};
             const message = e.response.data.message;
             if (message && !Object.keys(errors.value).length) {
-                errors.value.general = [message];
+                toast.error(message);
             }
         } else {
-            errors.value.general = [e.response?.data?.message ?? 'Something went wrong. Please try again.'];
+            toast.error(e.response?.data?.message ?? 'Something went wrong. Please try again.');
         }
     } finally {
         submitting.value = false;
@@ -104,9 +105,7 @@ async function submit() {
                 Total: <span class="font-medium text-gray-700">{{ total }} USD</span>
             </div>
 
-            <p v-if="errors.balance || errors.general" class="text-xs text-red-500">
-                {{ (errors.balance ?? errors.general)?.[0] }}
-            </p>
+            <p v-if="errors.balance" class="text-xs text-red-500">{{ errors.balance[0] }}</p>
 
             <button
                 @click="submit"
