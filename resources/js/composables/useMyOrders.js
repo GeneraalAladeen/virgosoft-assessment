@@ -11,7 +11,7 @@ export function useMyOrders(selectedSymbol) {
     async function fetchMyOrders() {
         loadingOrders.value = true;
         try {
-            const params = {};
+            const params = { mine: 1 };
             if (selectedSymbol?.value) params.symbol = selectedSymbol.value;
             if (filterSide.value)      params.side   = filterSide.value;
             if (filterStatus.value)    params.status  = filterStatus.value;

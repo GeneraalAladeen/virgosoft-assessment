@@ -22,7 +22,7 @@ class OrderController extends Controller
 
     public function index(OrderIndexRequest $request): AnonymousResourceCollection
     {
-        if ($request->filled('symbol') && !$request->filled('side') && !$request->filled('status')) {
+        if ($request->filled('symbol') && !$request->filled('side') && !$request->filled('status') && !$request->boolean('mine')) {
             $orders = Order::query()
                 ->where('symbol', $request->symbol)
                 ->where('status', OrderStatus::Open)
