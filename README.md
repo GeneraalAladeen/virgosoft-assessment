@@ -13,6 +13,7 @@ A trading platform built as a technical assessment. It features a real-time orde
 - **Order Cancellation** — cancel open orders with asset/balance refund
 - **Wallet & Assets** — track user balances and asset holdings, updated in real time from match events (no extra fetch)
 - **Commission Display** — buyers see the commission deducted in their toast notification and filled order details
+- **My Orders** — personal order history filtered by the active symbol, with side and status filters; orders update live on match events
 - **Real-time Updates** — order book and wallet update live via Pusher/Laravel Echo
 - **REST API** — token-based auth via Laravel Sanctum
 - **SPA Frontend** — Vue 3 + Inertia.js + Tailwind CSS
@@ -31,7 +32,7 @@ A trading platform built as a technical assessment. It features a real-time orde
 | Cache / Sessions | Redis 7 |
 | Queue | Laravel Queue (Redis) |
 | Build Tool | Vite 7 |
-| Testing | PHPUnit 11, SQLite (in-memory) |
+| Testing | PHPUnit 11, MySQL (dedicated test database) |
 | Containerisation | Docker, Docker Compose |
 
 ---
