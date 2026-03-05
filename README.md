@@ -39,7 +39,7 @@ A trading platform built as a technical assessment. It features a real-time orde
 ## Requirements
 
 - [Docker](https://docs.docker.com/get-docker/) & Docker Compose
-- A [Pusher](https://pusher.com) account (or compatible server like Soketi) for real-time events
+- A [Pusher](https://pusher.com) account for real-time events
 
 > No local PHP, Composer, or Node installation is required — everything runs inside the containers.
 
@@ -84,7 +84,15 @@ DOCKER_CONFIG_FOLDER=./storage/app/virgosoft-assessment   # Docker volumes store
 docker compose build
 ```
 
-### 4. Start the containers
+### 4. Install PHP dependencies
+
+Run this before starting the containers — the webserver will crash-loop on startup without `vendor/`:
+
+```bash
+docker compose run --rm webserver composer install
+```
+
+### 5. Start the containers
 
 ```bash
 docker compose up -d
@@ -95,12 +103,6 @@ This starts:
 - `queue` — Laravel queue worker
 - `database_server` — MySQL 8.4
 - `redis` — Redis 7
-
-### 5. Install PHP dependencies
-
-```bash
-docker compose exec webserver composer install
-```
 
 ### 6. Generate the application key
 
@@ -134,34 +136,11 @@ The app is now available at [http://localhost:8000](http://localhost:8000).
 
 ---
 
-## API Endpoints
-
-All routes require a valid Sanctum token via `Authorization: Bearer <token>`.
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/profile` | Authenticated user profile |
-| GET | `/api/orders` | Order book + order history |
-| POST | `/api/orders` | Place a new order |
-| POST | `/api/orders/{id}/cancel` | Cancel an open order |
-
----
-
 ## Testing
 
 > **Prerequisites:** ensure you have copied `.env.example` to `.env.testing` (see step 2 of Installation). `.env.testing` is gitignored and must be created manually.
 
-### Default: SQLite in-memory (no extra database required)
-
-`phpunit.xml` overrides the database connection to SQLite in-memory, so `.env.testing` only needs to exist — its `DB_*` values are ignored for this mode. Just run:
-
-```bash
-docker compose exec webserver php artisan test
-```
-
-### Alternative: dedicated MySQL test database
-
-If you want the tests to run against a real MySQL database instead:
+### Setup: dedicated MySQL test database
 
 **1. Create the test database inside the running MySQL container:**
 
@@ -176,7 +155,7 @@ docker compose exec database_server mysql -uroot -psecret -e \
 APP_ENV=testing
 
 DB_CONNECTION=mysql
-DB_HOST=database_server   # use the Docker service name, not 127.0.0.1
+DB_HOST=database_server
 DB_PORT=3306
 DB_DATABASE=virgosoft_test
 DB_USERNAME=root
@@ -189,12 +168,10 @@ BROADCAST_CONNECTION=null
 MAIL_MAILER=array
 ```
 
-**3. Remove the SQLite overrides from `phpunit.xml`** (or comment them out):
+**3. Generate an application key for the test environment:**
 
-```xml
-<!-- Remove or comment these two lines: -->
-<env name="DB_CONNECTION" value="sqlite"/>
-<env name="DB_DATABASE" value=":memory:"/>
+```bash
+docker compose exec webserver php artisan key:generate --env=testing
 ```
 
 **4. Run migrations against the test database:**
@@ -206,9 +183,7 @@ docker compose exec webserver php artisan migrate --env=testing
 ### Running tests
 
 ```bash
-# Run all tests
-docker compose exec webserver php artisan test
-
+docker compose exec webserver php artisan test --coverage --min=90
 ```
 
 ---
