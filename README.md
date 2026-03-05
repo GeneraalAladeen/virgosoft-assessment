@@ -50,7 +50,7 @@ A trading platform built as a technical assessment. It features a real-time orde
 ### 1. Clone the repository
 
 ```bash
-git clone <repo-url> virgosoft-assessment
+git clone git@github.com:GeneraalAladeen/virgosoft-assessment.git
 cd virgosoft-assessment
 ```
 
