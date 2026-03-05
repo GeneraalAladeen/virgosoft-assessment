@@ -75,7 +75,7 @@ The database, Redis, and Docker port settings are already pre-configured in `.en
 ```env
 DOCKER_DB_PORT=3307         # MySQL exposed on host port 3307
 DOCKER_SERVER_PORT=8000     # App exposed on host port 8000
-DOCKER_CONFIG_FOLDER=~/.docker-config/virgosoft-assessment
+DOCKER_CONFIG_FOLDER=./storage/app/virgosoft-assessment   # Docker volumes stored inside the project
 ```
 
 ### 3. Build the Docker containers
