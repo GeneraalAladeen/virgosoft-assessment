@@ -69,7 +69,7 @@ function onOrderPlaced() {
     toast.success('Order placed successfully');
     fetchProfile();
     fetchMyOrders();
-    // orderbook updated via OrderPlaced broadcast
+
 }
 
 async function cancelOrder(orderId) {
@@ -105,21 +105,39 @@ function applyOrderPlaced(event) {
     }
 }
 
+function applyOrderMatched(event) {
+    const filledIds = new Set([event.buy_order_id, event.sell_order_id]);
+    orderbook.value.bids = orderbook.value.bids.filter(o => !filledIds.has(o.id));
+    orderbook.value.asks = orderbook.value.asks.filter(o => !filledIds.has(o.id));
+}
+
 function subscribeToEvents() {
     if (!window.Echo) return;
 
     echoChannel = window.Echo.private(`user.${userId.value}`)
         .listen('OrderMatched', (event) => {
             const filledIds = new Set([event.buy_order_id, event.sell_order_id]);
-            myOrders.value = myOrders.value.map(o => filledIds.has(o.id) ? { ...o, status: 2 } : o);
+            myOrders.value = myOrders.value.map(o => {
+                if (!filledIds.has(o.id)) return o;
+                return {
+                    ...o,
+                    status: 2,
+                    matched_price: event.matched_price,
+                    commission: o.id === event.buy_order_id ? event.commission : null,
+                };
+            });
             orderbook.value.bids = orderbook.value.bids.filter(o => !filledIds.has(o.id));
             orderbook.value.asks = orderbook.value.asks.filter(o => !filledIds.has(o.id));
-            fetchProfile(); // balance/assets changed
-            toast.success(`Order matched — ${event.amount} ${event.symbol} at $${formatPrice(event.matched_price)}`);
+            const me = event.buyer?.id === userId.value ? event.buyer : event.seller;
+            if (me) profile.value = { ...profile.value, balance: me.balance, assets: me.assets };
+            const isBuyer = event.buyer?.id === userId.value;
+            const commissionNote = isBuyer ? ` (commission: $${formatPrice(event.commission)})` : '';
+            toast.success(`Order matched — ${event.amount} ${event.symbol} at $${formatPrice(event.matched_price)}${commissionNote}`);
         });
 
     echoOrderbookChannel = window.Echo.channel(`orders.${selectedSymbol.value}`)
-        .listen('OrderPlaced', applyOrderPlaced);
+        .listen('OrderPlaced', applyOrderPlaced)
+        .listen('OrderMatched', applyOrderMatched);
 }
 
 function unsubscribeFromEvents() {
@@ -141,7 +159,8 @@ watch(selectedSymbol, (newSymbol, oldSymbol) => {
     fetchOrderbook();
     if (window.Echo) {
         echoOrderbookChannel = window.Echo.channel(`orders.${newSymbol}`)
-            .listen('OrderPlaced', applyOrderPlaced);
+            .listen('OrderPlaced', applyOrderPlaced)
+            .listen('OrderMatched', applyOrderMatched);
     }
 });
 
@@ -174,6 +193,10 @@ function formatPrice(val) {
 function formatAmount(val) {
     return parseFloat(val).toFixed(8).replace(/\.?0+$/, '');
 }
+
+
+const asksDisplay = computed(() => orderbook.value.asks.slice(0, 10).reverse());
+const bidsDisplay = computed(() => orderbook.value.bids.slice(0, 10));
 </script>
 
 <template>
@@ -227,41 +250,69 @@ function formatAmount(val) {
                         <LimitOrderForm :symbol="selectedSymbol" @order-placed="onOrderPlaced" />
                     </div>
 
-                    <div class="rounded-lg bg-white p-4 shadow-sm">
-                        <h3 class="mb-3 text-sm font-semibold text-gray-700">Orderbook — {{ selectedSymbol }}/USD</h3>
-
-                        <div class="mb-2">
-                            <div class="mb-1 grid grid-cols-2 text-xs text-gray-400">
-                                <span>Price (USD)</span>
-                                <span class="text-right">Amount ({{ selectedSymbol }})</span>
-                            </div>
-                            <div v-if="orderbook.asks.length" class="space-y-0.5">
-                                <div
-                                    v-for="order in orderbook.asks.slice(0, 10)"
-                                    :key="order.id"
-                                    class="grid grid-cols-2 text-xs"
-                                >
-                                    <span class="text-red-500">{{ formatPrice(order.price) }}</span>
-                                    <span class="text-right text-gray-700">{{ formatAmount(order.amount) }}</span>
-                                </div>
-                            </div>
-                            <p v-else class="text-xs text-gray-400">No sell orders</p>
+                    <div class="rounded-lg bg-white shadow-sm overflow-hidden">
+                        <!-- Header -->
+                        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                            <h3 class="text-sm font-semibold text-gray-800">Order Book</h3>
+                            <span class="text-xs font-medium text-gray-500 bg-gray-100 rounded px-2 py-0.5">{{ selectedSymbol }}/USD</span>
                         </div>
 
-                        <div class="my-2 border-t border-gray-100"></div>
+                        <!-- Column headers -->
+                        <div class="px-4 py-1.5 grid grid-cols-2 text-xs font-medium text-gray-400 bg-gray-50 border-b border-gray-100">
+                            <span>Price (USD)</span>
+                            <span class="text-right">Amount ({{ selectedSymbol }})</span>
+                        </div>
 
-                        <div>
-                            <div v-if="orderbook.bids.length" class="space-y-0.5">
+                        <!-- Asks (sells) — worst to best, best ask at bottom -->
+                        <div class="px-4 pt-2 pb-1">
+                            <div class="mb-1 text-xs font-semibold text-red-400 uppercase tracking-wide">
+                                Asks <span class="normal-case font-normal text-gray-400">— sellers offering {{ selectedSymbol }}</span>
+                            </div>
+                            <div v-if="asksDisplay.length" class="space-y-0.5">
                                 <div
-                                    v-for="order in orderbook.bids.slice(0, 10)"
+                                    v-for="order in asksDisplay"
                                     :key="order.id"
-                                    class="grid grid-cols-2 text-xs"
+                                    :title="order.user_id === userId ? 'Your order — cannot self-match' : ''"
+                                    :class="order.user_id === userId
+                                        ? 'border-orange-300 bg-orange-50/60'
+                                        : 'border-transparent hover:border-red-300 hover:bg-red-50/50'"
+                                    class="grid grid-cols-2 text-xs py-0.5 border-l-2 rounded-r transition-colors"
                                 >
-                                    <span class="text-green-500">{{ formatPrice(order.price) }}</span>
-                                    <span class="text-right text-gray-700">{{ formatAmount(order.amount) }}</span>
+                                    <span class="font-mono font-medium text-red-500 flex items-center gap-1">
+                                        {{ formatPrice(order.price) }}
+                                        <span v-if="order.user_id === userId" class="text-orange-400 font-semibold normal-case tracking-normal">·You</span>
+                                    </span>
+                                    <span class="text-right text-gray-600 font-mono">{{ formatAmount(order.amount) }}</span>
                                 </div>
                             </div>
-                            <p v-else class="text-xs text-gray-400">No buy orders</p>
+                            <p v-else class="text-xs text-gray-400 py-2">No sell orders</p>
+                        </div>
+
+                        <div class="mx-4 my-2 border-t border-gray-100"></div>
+
+                        <!-- Bids (buys) — best bid at top -->
+                        <div class="px-4 pt-1 pb-3">
+                            <div class="mb-1 text-xs font-semibold text-green-500 uppercase tracking-wide">
+                                Bids <span class="normal-case font-normal text-gray-400">— buyers wanting {{ selectedSymbol }}</span>
+                            </div>
+                            <div v-if="bidsDisplay.length" class="space-y-0.5">
+                                <div
+                                    v-for="order in bidsDisplay"
+                                    :key="order.id"
+                                    :title="order.user_id === userId ? 'Your order — cannot self-match' : ''"
+                                    :class="order.user_id === userId
+                                        ? 'border-orange-300 bg-orange-50/60'
+                                        : 'border-transparent hover:border-green-400 hover:bg-green-50/50'"
+                                    class="grid grid-cols-2 text-xs py-0.5 border-l-2 rounded-r transition-colors"
+                                >
+                                    <span class="font-mono font-medium text-green-600 flex items-center gap-1">
+                                        {{ formatPrice(order.price) }}
+                                        <span v-if="order.user_id === userId" class="text-orange-400 font-semibold normal-case tracking-normal">·You</span>
+                                    </span>
+                                    <span class="text-right text-gray-600 font-mono">{{ formatAmount(order.amount) }}</span>
+                                </div>
+                            </div>
+                            <p v-else class="text-xs text-gray-400 py-2">No buy orders</p>
                         </div>
                     </div>
 
@@ -297,6 +348,10 @@ function formatAmount(val) {
                                     >
                                         Cancel
                                     </button>
+                                </div>
+                                <div v-if="order.status === 2 && order.matched_price" class="mt-1 text-gray-400">
+                                    Filled at ${{ formatPrice(order.matched_price) }}
+                                    <span v-if="order.commission" class="text-orange-400">· commission ${{ formatPrice(order.commission) }}</span>
                                 </div>
                             </div>
                         </div>
