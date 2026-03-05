@@ -298,4 +298,33 @@ class PlaceOrderTest extends TestCase
             'commission'    => '135.00000000',
         ]);
     }
+
+    public function test_self_match_is_prevented(): void
+    {
+        $user = User::factory()->create(['balance' => '20000.00000000']);
+        Asset::factory()->create([
+            'user_id' => $user->id, 'symbol' => 'BTC',
+            'amount' => '1.00000000', 'locked_amount' => '0.10000000',
+        ]);
+        Order::factory()->open()->create([
+            'user_id' => $user->id, 'symbol' => 'BTC',
+            'side' => 'sell', 'price' => '90000.00000000', 'amount' => '0.10000000',
+        ]);
+
+        $response = $this->actingAs($user)->postJson('/api/orders', [
+            'symbol' => 'BTC', 'side' => 'buy', 'price' => '95000', 'amount' => '0.1',
+        ]);
+
+        $response->assertCreated();
+
+        // Both orders must remain open — self-match must not occur
+        $orders = Order::where('user_id', $user->id)->get();
+        $this->assertCount(2, $orders);
+        foreach ($orders as $order) {
+            $this->assertEquals(OrderStatus::Open, $order->status);
+        }
+
+        // No trade should have been created
+        $this->assertDatabaseCount('trades', 0);
+    }
 }
