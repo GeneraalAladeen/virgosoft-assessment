@@ -2,17 +2,23 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Trade extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'buy_order_id',
         'sell_order_id',
         'buyer_id',
         'seller_id',
         'commission',
+    ];
+
+    protected $casts = [
+        'commission' => 'decimal:8',
     ];
 
     public function buyOrder(): BelongsTo

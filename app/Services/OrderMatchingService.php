@@ -74,6 +74,7 @@ class OrderMatchingService
                 ->where('side', 'sell')
                 ->where('status', OrderStatus::Open)
                 ->where('price', '<=', $order->price)
+                ->where('amount', $order->amount)
                 ->where('user_id', '!=', $order->user_id)
                 ->lockForUpdate()
                 ->orderBy('price', 'asc')
@@ -88,6 +89,7 @@ class OrderMatchingService
                 ->where('side', 'buy')
                 ->where('status', OrderStatus::Open)
                 ->where('price', '>=', $order->price)
+                ->where('amount', $order->amount)
                 ->where('user_id', '!=', $order->user_id)
                 ->lockForUpdate()
                 ->orderBy('price', 'desc')
@@ -144,6 +146,7 @@ class OrderMatchingService
             ->firstOrFail();
 
         $sellerAsset->locked_amount = bcsub((string) $sellerAsset->locked_amount, (string) $sellOrder->amount, 8);
+        $sellerAsset->amount = bcsub((string) $sellerAsset->amount, (string) $sellOrder->amount, 8);
         $sellerAsset->save();
 
         $buyOrder->status = OrderStatus::Filled;

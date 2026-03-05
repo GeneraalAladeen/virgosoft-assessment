@@ -88,11 +88,12 @@ class OrderMatchedBroadcastTest extends TestCase
             'side' => 'sell', 'price' => '90000.00000000', 'amount' => '0.10000000',
         ]);
 
-        $event = new OrderMatched($buyOrder, $sellOrder, '90000.00000000', '9000.00000000', '135.00000000');
+        $event = new OrderMatched($buyOrder, $sellOrder, '90000.00000000', '9000.00000000', '135.00000000', $buyer, $seller);
         $channels = $event->broadcastOn();
 
-        $this->assertCount(2, $channels);
+        $this->assertCount(3, $channels);
         $this->assertEquals("private-user.{$buyer->id}", $channels[0]->name);
         $this->assertEquals("private-user.{$seller->id}", $channels[1]->name);
+        $this->assertEquals('orders.BTC', $channels[2]->name);
     }
 }

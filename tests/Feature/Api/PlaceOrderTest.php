@@ -222,4 +222,80 @@ class PlaceOrderTest extends TestCase
         $buyOrder = Order::where('user_id', $buyer->id)->first();
         $this->assertEquals(OrderStatus::Open, $buyOrder->status);
     }
+
+    public function test_no_match_when_amounts_differ(): void
+    {
+        $seller = User::factory()->create();
+        Asset::factory()->create([
+            'user_id' => $seller->id, 'symbol' => 'BTC',
+            'amount' => '1.00000000', 'locked_amount' => '0.20000000',
+        ]);
+        Order::factory()->open()->create([
+            'user_id' => $seller->id, 'symbol' => 'BTC',
+            'side' => 'sell', 'price' => '90000.00000000', 'amount' => '0.20000000',
+        ]);
+
+        $buyer = User::factory()->create(['balance' => '10000.00000000']);
+
+        $this->actingAs($buyer)->postJson('/api/orders', [
+            'symbol' => 'BTC', 'side' => 'buy', 'price' => '95000', 'amount' => '0.1',
+        ]);
+
+        // Prices cross but amounts differ — no match
+        $buyOrder = Order::where('user_id', $buyer->id)->first();
+        $this->assertEquals(OrderStatus::Open, $buyOrder->status);
+    }
+
+    public function test_seller_asset_amount_decremented_after_match(): void
+    {
+        $seller = User::factory()->create();
+        Asset::factory()->create([
+            'user_id' => $seller->id, 'symbol' => 'BTC',
+            'amount' => '1.00000000', 'locked_amount' => '0.10000000',
+        ]);
+        Order::factory()->open()->create([
+            'user_id' => $seller->id, 'symbol' => 'BTC',
+            'side' => 'sell', 'price' => '90000.00000000', 'amount' => '0.10000000',
+        ]);
+
+        $buyer = User::factory()->create(['balance' => '10000.00000000']);
+
+        $this->actingAs($buyer)->postJson('/api/orders', [
+            'symbol' => 'BTC', 'side' => 'buy', 'price' => '95000', 'amount' => '0.1',
+        ]);
+
+        $sellerAsset = Asset::where('user_id', $seller->id)->where('symbol', 'BTC')->first();
+        $this->assertEquals('0.90000000', $sellerAsset->amount);
+        $this->assertEquals('0.00000000', $sellerAsset->locked_amount);
+    }
+
+    public function test_trade_record_is_created_with_correct_commission_on_match(): void
+    {
+        $seller = User::factory()->create();
+        Asset::factory()->create([
+            'user_id' => $seller->id, 'symbol' => 'BTC',
+            'amount' => '1.00000000', 'locked_amount' => '0.10000000',
+        ]);
+        $sellOrder = Order::factory()->open()->create([
+            'user_id' => $seller->id, 'symbol' => 'BTC',
+            'side' => 'sell', 'price' => '90000.00000000', 'amount' => '0.10000000',
+        ]);
+
+        $buyer = User::factory()->create(['balance' => '10000.00000000']);
+
+        $this->actingAs($buyer)->postJson('/api/orders', [
+            'symbol' => 'BTC', 'side' => 'buy', 'price' => '95000', 'amount' => '0.1',
+        ]);
+
+        $buyOrder = Order::where('user_id', $buyer->id)->first();
+
+        // volume = 0.1 * 90000 = 9000, commission = 9000 * 0.015 = 135
+        $this->assertDatabaseHas('trades', [
+            'buy_order_id'  => $buyOrder->id,
+            'sell_order_id' => $sellOrder->id,
+            'buyer_id'      => $buyer->id,
+            'seller_id'     => $seller->id,
+            'commission'    => '135.00000000',
+        ]);
+    }
 }
