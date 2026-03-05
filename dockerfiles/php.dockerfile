@@ -70,7 +70,7 @@ RUN delgroup dialout && \
     echo "[client]" > /home/laravel/.my.cnf && \
     echo "skip-ssl = true" >> /home/laravel/.my.cnf
 
-RUN echo "memory_limit = 512M" > /usr/local/etc/php/conf.d/memory-limit.ini
+RUN echo "memory_limit = 128M" > /usr/local/etc/php/conf.d/memory-limit.ini
 
 USER laravel
 WORKDIR $PROJECT_ROOT
